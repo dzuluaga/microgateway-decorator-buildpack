@@ -8,7 +8,7 @@
     "node",
     "app"
   ],
-  "scripts": {"start": "node microgateway.js"}
+  "scripts": {"start": "node microgateway.js"},
   "author": "Kyle Wiese",
   "dependencies": {
     "json-parse": "^1.0.3",
