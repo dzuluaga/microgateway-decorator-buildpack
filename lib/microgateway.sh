@@ -14,5 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-export PATH=$PATH:/home/vcap/app/tmp/node/bin
-exec > >(node ~/microgateway/microgateway.js run)
+echo "Running script"
+
+buildpack_dir=$DEPS_DIR/__BUILDPACK_INDEX__
+export PATH=$PATH:$buildpack_dir/node/bin:$buildpack_dir/edgemicro/cli
+exec > >(node $buildpack_dir/decorator/microgateway.js run)

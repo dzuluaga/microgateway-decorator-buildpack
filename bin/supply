@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# bin/supply <build-dir> <cache-dir> <deps-dir> <deps-index>
+
+BIN_DIR=$(cd $(dirname $0); pwd)
+ROOT_DIR=$(dirname $BIN_DIR)
+BUILD_DIR=$1
+CACHE_DIR=$2
+DEPS_DIR=$3
+INDEX_DIR=$4
+
+# put code and deps in <deps>/<index>
+
+node_dir=$DEPS_DIR/$INDEX_DIR/node
+microgateway_dir=$DEPS_DIR/$INDEX_DIR/edgemicro
+decorator_dir=$DEPS_DIR/$INDEX_DIR/decorator
+mkdir -p $node_dir
+mkdir -p $microgateway_dir
+mkdir -p $decorator_dir
+
+wget --quiet https://nodejs.org/dist/v6.11.3/node-v6.11.3-linux-x64.tar.gz
+tar --touch --strip-components 1 -xzf node-v6.11.3-linux-x64.tar.gz -C $DEPS_DIR/$INDEX_DIR/node
+rm node-v6.11.3-linux-x64.tar.gz
+
+export PATH=$PATH:$node_dir/bin
+git clone https://github.com/apigee-internal/microgateway.git $microgateway_dir
+(cd $microgateway_dir && git checkout tags/v2.5.8)
+npm --prefix $microgateway_dir install
+
+if [ "$APIGEE_MICROGATEWAY_CUST_PLUGINS" ]; then
+    for dir in $BUILD_DIR/$APIGEE_MICROGATEWAY_CUST_PLUGINS/*
+    do
+        test -d "$dir" || continue
+        file_count=$(find $dir -name package.json | wc -l)
+        if [[ $file_count -gt 0 ]]; then
+            npm --prefix $dir install
+        fi
+    done
+    cp -a $BUILD_DIR/$APIGEE_MICROGATEWAY_CUST_PLUGINS/. $microgateway_dir/plugins
+fi
+
+cp $ROOT_DIR/lib/microgateway.js $decorator_dir
+cp $ROOT_DIR/lib/package.json $decorator_dir
+npm --prefix $decorator_dir install
+
+# startup script goes into <deps>/<index>/profile.d
+# final build pack *should* copy it into $HOME/profile.d for
+# execution upon container startup
+
+mkdir -p $DEPS_DIR/$INDEX_DIR/profile.d
+cp $ROOT_DIR/lib/microgateway.sh $DEPS_DIR/$INDEX_DIR/profile.d
+sed "s/__BUILDPACK_INDEX__/$INDEX_DIR/g" $DEPS_DIR/$INDEX_DIR/profile.d/microgateway.sh -i
+chmod +x $DEPS_DIR/$INDEX_DIR/profile.d/microgateway.sh
